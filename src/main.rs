@@ -220,6 +220,7 @@ impl<const N: usize> canvas::Program<Message> for &PercolationGraph<N> {
                 }
             }
             const WHITE: MyColor = MyColor::new(255, 255, 255);
+
             #[derive(Debug, Clone, Copy)]
             struct MyPoint { w: usize, h: usize }
             impl MyPoint {
@@ -233,9 +234,15 @@ impl<const N: usize> canvas::Program<Message> for &PercolationGraph<N> {
             // TODO: try to convert in plain array/vec
             type Pixels = [[MyColor; GRAPH_H]; GRAPH_W];
 
-            fn fill_cluster(pixels: &mut Pixels, start_point: MyPoint, color: MyColor, p: f64, rng: &mut ThreadRng) {
+            fn fill_cluster(
+                pixels: &mut Pixels,
+                start_point: MyPoint,
+                color: MyColor,
+                parameter: f64,
+                rng: &mut ThreadRng
+            ) {
                 if pixels[start_point.w][start_point.h] != WHITE { return; }
-                let mut points_queue: Vec<MyPoint> = Vec::with_capacity(if p > 0.6 { GRAPH_WH } else { 20 });
+                let mut points_queue: Vec<MyPoint> = Vec::with_capacity(32);
                 points_queue.push(MyPoint::new(start_point.w, start_point.h));
                 while !points_queue.is_empty() {
                     let point: MyPoint = points_queue.pop().unwrap();
@@ -243,16 +250,16 @@ impl<const N: usize> canvas::Program<Message> for &PercolationGraph<N> {
                     if pixels[w][h] != WHITE { continue; } else {
                         pixels[w][h] = color;
                     }
-                    if w > 0 && pixels[w-1][h] == WHITE && rng.gen_bool(p) {
+                    if w > 0 && pixels[w-1][h] == WHITE && rng.gen_bool(parameter) {
                         points_queue.push(point.left());
                     }
-                    if w < GRAPH_W - 1 && pixels[w+1][h] == WHITE && rng.gen_bool(p) {
+                    if w < GRAPH_W - 1 && pixels[w+1][h] == WHITE && rng.gen_bool(parameter) {
                         points_queue.push(point.right());
                     }
-                    if h > 0 && pixels[w][h-1] == WHITE && rng.gen_bool(p) {
+                    if h > 0 && pixels[w][h-1] == WHITE && rng.gen_bool(parameter) {
                         points_queue.push(point.down());
                     }
-                    if h < GRAPH_H - 1 && pixels[w][h+1] == WHITE && rng.gen_bool(p) {
+                    if h < GRAPH_H - 1 && pixels[w][h+1] == WHITE && rng.gen_bool(parameter) {
                         points_queue.push(point.up());
                     }
                 }
@@ -264,19 +271,22 @@ impl<const N: usize> canvas::Program<Message> for &PercolationGraph<N> {
 
             let scale_w: f32 = frame.size().width  / GRAPH_W as f32;
             let scale_h: f32 = frame.size().height / GRAPH_H as f32;
-            let p: f64 = self.parameter as f64;
+            let parameter: f64 = self.parameter as f64;
             for h in 0..GRAPH_H {
                 for w in 0..GRAPH_W {
-                    fill_cluster(&mut pixels, MyPoint::new(w, h), MyColor::random(&mut rng), p, &mut rng);
+                    let start_point: MyPoint = MyPoint::new(w, h);
+                    let color: MyColor = MyColor::random(&mut rng);
+                    fill_cluster(&mut pixels, start_point, color, parameter, &mut rng);
 
-                    // at this time pixel[w][h] WILL be ready
+                    // at this time pixels[w][h] WILL be ready
 
                     let path = canvas::Path::rectangle(
                         Point::new(w as f32 * scale_w, h as f32 * scale_h),
                         Size::new(scale_w, scale_h)
                     );
                     let color: MyColor = pixels[w][h];
-                    frame.fill(&path, Color::from_rgb8(color.r, color.g, color.b));
+                    let color: Color = Color::from_rgb8(color.r, color.g, color.b);
+                    frame.fill(&path, color);
                 }
             }
         });
