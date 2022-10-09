@@ -231,9 +231,9 @@ impl<const N: usize> canvas::Program<Message> for &PercolationGraph<N> {
                 const fn down(&self)  -> Self { Self::new(self.w, self.h-1) }
             }
 
-            // TODO: try to convert in plain array/vec
             type Pixels = [[MyColor; GRAPH_H]; GRAPH_W];
 
+            #[inline(always)]
             fn fill_cluster(
                 pixels: &mut Pixels,
                 start_point: MyPoint,
@@ -265,6 +265,8 @@ impl<const N: usize> canvas::Program<Message> for &PercolationGraph<N> {
                 }
             }
 
+            // let time_begin = std::time::Instant::now();
+
             // let mut rng: SimpleRng = SimpleRng::new(42);
             let mut rng: ThreadRng = thread_rng();
             let mut pixels: Pixels = [[WHITE; GRAPH_H]; GRAPH_W];
@@ -278,7 +280,7 @@ impl<const N: usize> canvas::Program<Message> for &PercolationGraph<N> {
                     let color: MyColor = MyColor::random(&mut rng);
                     fill_cluster(&mut pixels, start_point, color, parameter, &mut rng);
 
-                    // at this time pixels[w][h] WILL be ready
+                    // at this moment `pixels[w][h]` WILL be ready
 
                     let path = canvas::Path::rectangle(
                         Point::new(w as f32 * scale_w, h as f32 * scale_h),
@@ -289,6 +291,11 @@ impl<const N: usize> canvas::Program<Message> for &PercolationGraph<N> {
                     frame.fill(&path, color);
                 }
             }
+            // let time_end = std::time::Instant::now();
+            // println!(
+            //     "parameter = {parameter}, render time = {rt:?}",
+            //     rt = (time_end - time_begin)
+            // );
         });
         vec![geom]
     }
