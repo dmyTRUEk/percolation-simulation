@@ -32,10 +32,10 @@ use rand::{thread_rng, Rng, rngs::ThreadRng};
 
 // const GRAPH_W: usize = 5;
 // const GRAPH_H: usize = 3;
-const GRAPH_W: usize = 360;
-const GRAPH_H: usize = 180;
-// const GRAPH_W: usize = 1920;
-// const GRAPH_H: usize = 990;
+// const GRAPH_W: usize = 360;
+// const GRAPH_H: usize = 180;
+const GRAPH_W: usize = 1920;
+const GRAPH_H: usize = 990;
 const GRAPH_WH: usize = GRAPH_W * GRAPH_H;
 
 const INITIAL_PARAMETER: f32 = 0.5;
@@ -234,33 +234,40 @@ impl<const N: usize> canvas::Program<Message> for &PercolationGraph<N> {
             type Pixels = [[MyColor; GRAPH_H]; GRAPH_W];
 
             fn fill_cluster(pixels: &mut Pixels, start_point: MyPoint, color: MyColor, p: f64, rng: &mut ThreadRng) {
-                let (w, h) = (start_point.w, start_point.h);
-                if pixels[w][h] != WHITE { return; }
-                pixels[w][h] = color;
-                if w > 0 && pixels[w-1][h] == WHITE && rng.gen_bool(p) {
-                    fill_cluster(pixels, start_point.left(), color, p, rng);
-                }
-                if w < GRAPH_W - 1 && pixels[w+1][h] == WHITE && rng.gen_bool(p) {
-                    fill_cluster(pixels, start_point.right(), color, p, rng);
-                }
-                if h > 0 && pixels[w][h-1] == WHITE && rng.gen_bool(p) {
-                    fill_cluster(pixels, start_point.down(), color, p, rng);
-                }
-                if h < GRAPH_H - 1 && pixels[w][h+1] == WHITE && rng.gen_bool(p) {
-                    fill_cluster(pixels, start_point.up(), color, p, rng);
+                if pixels[start_point.w][start_point.h] != WHITE { return; }
+                let mut points_queue: Vec<MyPoint> = Vec::with_capacity(if p > 0.6 { GRAPH_WH } else { 20 });
+                points_queue.push(MyPoint::new(start_point.w, start_point.h));
+                while !points_queue.is_empty() {
+                    let point: MyPoint = points_queue.pop().unwrap();
+                    let (w, h) = (point.w, point.h);
+                    if pixels[w][h] != WHITE { continue; } else {
+                        pixels[w][h] = color;
+                    }
+                    if w > 0 && pixels[w-1][h] == WHITE && rng.gen_bool(p) {
+                        points_queue.push(point.left());
+                    }
+                    if w < GRAPH_W - 1 && pixels[w+1][h] == WHITE && rng.gen_bool(p) {
+                        points_queue.push(point.right());
+                    }
+                    if h > 0 && pixels[w][h-1] == WHITE && rng.gen_bool(p) {
+                        points_queue.push(point.down());
+                    }
+                    if h < GRAPH_H - 1 && pixels[w][h+1] == WHITE && rng.gen_bool(p) {
+                        points_queue.push(point.up());
+                    }
                 }
             }
 
             // let mut rng: SimpleRng = SimpleRng::new(42);
             let mut rng: ThreadRng = thread_rng();
-            let mut pixel: Pixels = [[WHITE; GRAPH_H]; GRAPH_W];
+            let mut pixels: Pixels = [[WHITE; GRAPH_H]; GRAPH_W];
 
             let scale_w: f32 = frame.size().width  / GRAPH_W as f32;
             let scale_h: f32 = frame.size().height / GRAPH_H as f32;
             let p: f64 = self.parameter as f64;
             for h in 0..GRAPH_H {
                 for w in 0..GRAPH_W {
-                    fill_cluster(&mut pixel, MyPoint::new(w, h), MyColor::random(&mut rng), p, &mut rng);
+                    fill_cluster(&mut pixels, MyPoint::new(w, h), MyColor::random(&mut rng), p, &mut rng);
 
                     // at this time pixel[w][h] WILL be ready
 
@@ -268,7 +275,7 @@ impl<const N: usize> canvas::Program<Message> for &PercolationGraph<N> {
                         Point::new(w as f32 * scale_w, h as f32 * scale_h),
                         Size::new(scale_w, scale_h)
                     );
-                    let color: MyColor = pixel[w][h];
+                    let color: MyColor = pixels[w][h];
                     frame.fill(&path, Color::from_rgb8(color.r, color.g, color.b));
                 }
             }
